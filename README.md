@@ -36,9 +36,10 @@ A Chrome extension (Manifest V3) that detects tabnabbing attacks by comparing sc
 - **Grid Size**: 50x50 pixels per square
 - **Change Threshold**: 5% difference per square
 - **Permissions**: 
-  - `tabs`: To access tab information
-  - `activeTab`: To capture screenshots
-  - `storage`: To temporarily store screenshots
+  - `tabs`: To access tab information and monitor tab changes
+  - `activeTab`: To capture screenshots of the active tab
+  - `storage`: To temporarily store screenshots for comparison
+  - `host_permissions` (`<all_urls>`): Required for automatic screenshot capture without user interaction (necessary for tabnabbing detection)
 
 ## Project Structure
 
