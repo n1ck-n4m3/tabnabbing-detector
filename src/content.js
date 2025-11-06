@@ -297,6 +297,34 @@ console.log('Tabnabbing Detector content script loaded');
 console.log('Resemble.js loaded:', typeof resemble !== 'undefined');
 console.log('Window dimensions:', window.innerWidth, 'x', window.innerHeight);
 
+// Expose test function to window for easy debugging
+window.testTabnabbingHighlight = function() {
+  console.log('Testing highlight overlay...');
+  createOverlay();
+  const testHighlight = document.createElement('div');
+  testHighlight.style.cssText = `
+    position: fixed;
+    left: 50px;
+    top: 50px;
+    width: 200px;
+    height: 200px;
+    background: rgba(255, 0, 0, 0.5);
+    border: 5px solid rgba(255, 0, 0, 1);
+    pointer-events: none;
+    z-index: 999999;
+  `;
+  if (overlayDiv) {
+    overlayDiv.appendChild(testHighlight);
+    console.log('✓ Test highlight added (red square at 50,50)');
+    return true;
+  } else {
+    console.error('✗ Overlay not created');
+    return false;
+  }
+};
+
+console.log('💡 Tip: Run testTabnabbingHighlight() in console to test highlight overlay');
+
 // Clean up on page unload
 window.addEventListener('beforeunload', () => {
   removeOverlay();

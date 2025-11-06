@@ -59,18 +59,44 @@ chrome.tabs.onActivated.addListener(async (activeInfo) => {
         const newScreenshot = await takeScreenshot(tabId);
         if (newScreenshot && previousScreenshot.screenshot) {
           console.log('Screenshots ready, sending to content script for comparison');
+          console.log('Before screenshot size:', previousScreenshot.screenshot.length, 'bytes');
+          console.log('After screenshot size:', newScreenshot.length, 'bytes');
+          
           // Notify content script to compare
-          chrome.tabs.sendMessage(tabId, {
-            action: 'compareScreenshots',
-            before: previousScreenshot.screenshot,
-            after: newScreenshot
-          }).then(() => {
-            console.log('Message sent to content script');
-          }).catch((error) => {
-            console.error('Error sending message to content script:', error);
+          try {
+            await chrome.tabs.sendMessage(tabId, {
+              action: 'compareScreenshots',
+              before: previousScreenshot.screenshot,
+              after: newScreenshot
+            });
+            console.log('✓ Message sent to content script successfully');
+          } catch (error) {
+            console.error('✗ Error sending message to content script:', error);
+            // Try to inject content script if it's not loaded
+            if (error.message && error.message.includes('Could not establish connection')) {
+              console.log('Content script might not be loaded, trying to inject...');
+              chrome.scripting.executeScript({
+                target: { tabId: tabId },
+                files: ['lib/resemble.js', 'src/content.js']
+              }).then(() => {
+                console.log('Content script injected, retrying message...');
+                chrome.tabs.sendMessage(tabId, {
+                  action: 'compareScreenshots',
+                  before: previousScreenshot.screenshot,
+                  after: newScreenshot
+                }).catch(err => console.error('Retry failed:', err));
+              }).catch(injectError => {
+                console.error('Failed to inject content script:', injectError);
+              });
+            }
+          }
+        } else {
+          console.error('Screenshots not ready:', {
+            newScreenshot: !!newScreenshot,
+            previousScreenshot: !!previousScreenshot.screenshot
           });
         }
-      }, 1000); // Increased delay to 1 second
+      }, 1500); // Increased delay to 1.5 seconds
     }
   }
   
