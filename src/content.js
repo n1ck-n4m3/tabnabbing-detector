@@ -292,12 +292,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   }
 });
 
-// Log when content script loads
-console.log('Tabnabbing Detector content script loaded');
-console.log('Resemble.js loaded:', typeof resemble !== 'undefined');
-console.log('Window dimensions:', window.innerWidth, 'x', window.innerHeight);
-
-// Expose test function to window for easy debugging
+// Expose test function to window for easy debugging (do this first)
 window.testTabnabbingHighlight = function() {
   console.log('Testing highlight overlay...');
   createOverlay();
@@ -323,6 +318,11 @@ window.testTabnabbingHighlight = function() {
   }
 };
 
+// Log when content script loads
+console.log('🔍 Tabnabbing Detector content script loaded');
+console.log('📦 Resemble.js loaded:', typeof resemble !== 'undefined');
+console.log('📐 Window dimensions:', window.innerWidth, 'x', window.innerHeight);
+console.log('✅ Test function available: testTabnabbingHighlight()');
 console.log('💡 Tip: Run testTabnabbingHighlight() in console to test highlight overlay');
 
 // Clean up on page unload
