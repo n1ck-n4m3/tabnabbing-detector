@@ -58,14 +58,24 @@ function compareScreenshots(beforeDataUrl, afterDataUrl) {
 
 // Split image into grid and compare each square
 async function compareGridSquares(beforeDataUrl, afterDataUrl) {
+  console.log('Loading images for comparison...');
   const beforeImg = await loadImage(beforeDataUrl);
   const afterImg = await loadImage(afterDataUrl);
+  
+  console.log('Before image size:', beforeImg.width, 'x', beforeImg.height);
+  console.log('After image size:', afterImg.width, 'x', afterImg.height);
   
   const width = Math.min(beforeImg.width, afterImg.width);
   const height = Math.min(beforeImg.height, afterImg.height);
   
+  // Store image dimensions for scaling
+  window.screenshotWidth = width;
+  window.screenshotHeight = height;
+  
   const cols = Math.ceil(width / GRID_SIZE);
   const rows = Math.ceil(height / GRID_SIZE);
+  
+  console.log('Grid size:', cols, 'x', rows, 'squares');
   
   const changedSquares = [];
   
@@ -90,12 +100,15 @@ async function compareGridSquares(beforeDataUrl, afterDataUrl) {
           y: y,
           width: squareWidth,
           height: squareHeight,
-          diff: comparison.misMatchPercentage
+          diff: comparison.misMatchPercentage,
+          screenshotWidth: width,
+          screenshotHeight: height
         });
       }
     }
   }
   
+  console.log('Found', changedSquares.length, 'changed squares');
   return changedSquares;
 }
 
@@ -122,34 +135,65 @@ function extractSquare(img, x, y, width, height) {
 // Highlight changed squares on the page
 function highlightChanges(changedSquares) {
   console.log('Highlighting', changedSquares.length, 'changed squares');
+  
+  if (changedSquares.length === 0) {
+    console.log('No changes to highlight');
+    return;
+  }
+  
   createOverlay();
   
   // Get viewport dimensions for scaling
   const viewportWidth = window.innerWidth;
   const viewportHeight = window.innerHeight;
   
-  changedSquares.forEach((square) => {
+  // Get screenshot dimensions (use first square's dimensions or stored values)
+  const screenshotWidth = changedSquares[0].screenshotWidth || window.screenshotWidth || viewportWidth;
+  const screenshotHeight = changedSquares[0].screenshotHeight || window.screenshotHeight || viewportHeight;
+  
+  console.log('Viewport:', viewportWidth, 'x', viewportHeight);
+  console.log('Screenshot:', screenshotWidth, 'x', screenshotHeight);
+  
+  // Calculate scale factors
+  const scaleX = viewportWidth / screenshotWidth;
+  const scaleY = viewportHeight / screenshotHeight;
+  
+  console.log('Scale factors:', scaleX, 'x', scaleY);
+  
+  changedSquares.forEach((square, index) => {
     const highlight = document.createElement('div');
-    // Scale coordinates to match viewport (screenshots might be different size)
-    const scaleX = viewportWidth / (square.x + square.width > viewportWidth ? square.x + square.width : viewportWidth);
-    const scaleY = viewportHeight / (square.y + square.height > viewportHeight ? square.y + square.height : viewportHeight);
+    
+    // Scale coordinates from screenshot to viewport
+    const scaledX = square.x * scaleX;
+    const scaledY = square.y * scaleY;
+    const scaledWidth = square.width * scaleX;
+    const scaledHeight = square.height * scaleY;
     
     highlight.style.cssText = `
       position: fixed;
-      left: ${square.x}px;
-      top: ${square.y}px;
-      width: ${square.width}px;
-      height: ${square.height}px;
-      background: rgba(255, 0, 0, 0.4);
-      border: 2px solid rgba(255, 0, 0, 1);
+      left: ${scaledX}px;
+      top: ${scaledY}px;
+      width: ${scaledWidth}px;
+      height: ${scaledHeight}px;
+      background: rgba(255, 0, 0, 0.5);
+      border: 3px solid rgba(255, 0, 0, 1);
       pointer-events: none;
       box-sizing: border-box;
       z-index: 999999;
     `;
+    
+    // Add a label for debugging
+    highlight.setAttribute('data-index', index);
+    highlight.setAttribute('data-diff', square.diff.toFixed(1) + '%');
+    
     overlayDiv.appendChild(highlight);
+    
+    if (index < 5) { // Log first 5 for debugging
+      console.log(`Highlight ${index}: x=${scaledX.toFixed(0)}, y=${scaledY.toFixed(0)}, w=${scaledWidth.toFixed(0)}, h=${scaledHeight.toFixed(0)}, diff=${square.diff.toFixed(1)}%`);
+    }
   });
   
-  console.log('Highlights added to page');
+  console.log('Highlights added to page, total:', changedSquares.length);
   
   // Update badge color based on number of changes
   const changeCount = changedSquares.length;
@@ -174,6 +218,16 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   
   if (message.action === 'compareScreenshots') {
     console.log('Starting screenshot comparison...');
+    console.log('Before screenshot length:', message.before ? message.before.length : 'null');
+    console.log('After screenshot length:', message.after ? message.after.length : 'null');
+    
+    // Check if Resemble.js is loaded
+    if (typeof resemble === 'undefined') {
+      console.error('Resemble.js is not loaded!');
+      sendResponse({ success: false, error: 'Resemble.js not loaded' });
+      return true;
+    }
+    
     compareGridSquares(message.before, message.after)
       .then((changedSquares) => {
         console.log('Comparison complete. Changed squares:', changedSquares.length);
@@ -184,12 +238,29 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
             timestamp: Date.now()
           };
         } else {
-          console.log('No changes detected');
+          console.log('No changes detected - showing test highlight for debugging');
+          // Show a test highlight in top-left corner to verify overlay works
+          createOverlay();
+          const testHighlight = document.createElement('div');
+          testHighlight.style.cssText = `
+            position: fixed;
+            left: 10px;
+            top: 10px;
+            width: 100px;
+            height: 100px;
+            background: rgba(0, 255, 0, 0.5);
+            border: 3px solid rgba(0, 255, 0, 1);
+            pointer-events: none;
+            z-index: 999999;
+          `;
+          overlayDiv.appendChild(testHighlight);
+          console.log('Test highlight added (green square in top-left)');
         }
         sendResponse({ success: true, changes: changedSquares.length });
       })
       .catch((error) => {
         console.error('Error comparing screenshots:', error);
+        console.error('Error stack:', error.stack);
         sendResponse({ success: false, error: error.message });
       });
     return true; // Keep channel open for async response
@@ -199,10 +270,32 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     removeOverlay();
     sendResponse({ success: true });
   }
+  
+  if (message.action === 'testHighlight') {
+    // Test function to verify highlighting works
+    createOverlay();
+    const testHighlight = document.createElement('div');
+    testHighlight.style.cssText = `
+      position: fixed;
+      left: 50px;
+      top: 50px;
+      width: 200px;
+      height: 200px;
+      background: rgba(255, 0, 0, 0.5);
+      border: 5px solid rgba(255, 0, 0, 1);
+      pointer-events: none;
+      z-index: 999999;
+    `;
+    overlayDiv.appendChild(testHighlight);
+    console.log('Test highlight added');
+    sendResponse({ success: true });
+  }
 });
 
 // Log when content script loads
 console.log('Tabnabbing Detector content script loaded');
+console.log('Resemble.js loaded:', typeof resemble !== 'undefined');
+console.log('Window dimensions:', window.innerWidth, 'x', window.innerHeight);
 
 // Clean up on page unload
 window.addEventListener('beforeunload', () => {
