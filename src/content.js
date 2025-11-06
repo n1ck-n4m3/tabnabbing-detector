@@ -121,46 +121,70 @@ function extractSquare(img, x, y, width, height) {
 
 // Highlight changed squares on the page
 function highlightChanges(changedSquares) {
+  console.log('Highlighting', changedSquares.length, 'changed squares');
   createOverlay();
+  
+  // Get viewport dimensions for scaling
+  const viewportWidth = window.innerWidth;
+  const viewportHeight = window.innerHeight;
   
   changedSquares.forEach((square) => {
     const highlight = document.createElement('div');
+    // Scale coordinates to match viewport (screenshots might be different size)
+    const scaleX = viewportWidth / (square.x + square.width > viewportWidth ? square.x + square.width : viewportWidth);
+    const scaleY = viewportHeight / (square.y + square.height > viewportHeight ? square.y + square.height : viewportHeight);
+    
     highlight.style.cssText = `
-      position: absolute;
+      position: fixed;
       left: ${square.x}px;
       top: ${square.y}px;
       width: ${square.width}px;
       height: ${square.height}px;
-      background: rgba(255, 0, 0, 0.3);
-      border: 2px solid rgba(255, 0, 0, 0.8);
+      background: rgba(255, 0, 0, 0.4);
+      border: 2px solid rgba(255, 0, 0, 1);
       pointer-events: none;
       box-sizing: border-box;
+      z-index: 999999;
     `;
     overlayDiv.appendChild(highlight);
   });
+  
+  console.log('Highlights added to page');
   
   // Update badge color based on number of changes
   const changeCount = changedSquares.length;
   const severity = changeCount > 20 ? 'high' : changeCount > 10 ? 'medium' : 'low';
   
+  console.log('Updating badge:', changeCount, 'changes, severity:', severity);
+  
   chrome.runtime.sendMessage({
     action: 'updateBadge',
     severity: severity,
     count: changeCount
+  }).then(() => {
+    console.log('Badge update message sent');
+  }).catch((error) => {
+    console.error('Error sending badge update:', error);
   });
 }
 
 // Listen for comparison requests from background script
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  console.log('Content script received message:', message.action);
+  
   if (message.action === 'compareScreenshots') {
+    console.log('Starting screenshot comparison...');
     compareGridSquares(message.before, message.after)
       .then((changedSquares) => {
+        console.log('Comparison complete. Changed squares:', changedSquares.length);
         if (changedSquares.length > 0) {
           highlightChanges(changedSquares);
           comparisonResult = {
             changedSquares: changedSquares,
             timestamp: Date.now()
           };
+        } else {
+          console.log('No changes detected');
         }
         sendResponse({ success: true, changes: changedSquares.length });
       })
@@ -176,6 +200,9 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     sendResponse({ success: true });
   }
 });
+
+// Log when content script loads
+console.log('Tabnabbing Detector content script loaded');
 
 // Clean up on page unload
 window.addEventListener('beforeunload', () => {

@@ -8,10 +8,16 @@ const tabFocusState = new Map(); // tabId -> {hasFocus, lastFocusTime}
 // Take screenshot of a tab
 async function takeScreenshot(tabId) {
   try {
-    const dataUrl = await chrome.tabs.captureVisibleTab(null, {
+    const tab = await chrome.tabs.get(tabId);
+    if (!tab || !tab.url || tab.url.startsWith('chrome://') || tab.url.startsWith('chrome-extension://')) {
+      return null;
+    }
+    
+    const dataUrl = await chrome.tabs.captureVisibleTab(tab.windowId, {
       format: 'png',
       quality: 100
     });
+    console.log('Screenshot captured for tab', tabId);
     return dataUrl;
   } catch (error) {
     console.error('Error taking screenshot:', error);
@@ -40,27 +46,45 @@ chrome.tabs.onActivated.addListener(async (activeInfo) => {
   const tabId = activeInfo.tabId;
   const currentState = tabFocusState.get(tabId);
   
+  console.log('Tab activated:', tabId, 'Previous state:', currentState);
+  
   // If tab was previously unfocused, check for changes
   if (currentState && !currentState.hasFocus) {
     const previousScreenshot = tabScreenshots.get(tabId);
     if (previousScreenshot) {
+      console.log('Tab was unfocused, checking for changes...');
       // Small delay to ensure page is fully loaded
       setTimeout(async () => {
         // Take new screenshot
         const newScreenshot = await takeScreenshot(tabId);
         if (newScreenshot && previousScreenshot.screenshot) {
+          console.log('Screenshots ready, sending to content script for comparison');
           // Notify content script to compare
           chrome.tabs.sendMessage(tabId, {
             action: 'compareScreenshots',
             before: previousScreenshot.screenshot,
             after: newScreenshot
-          }).catch(() => {
-            // Content script might not be ready, ignore
+          }).then(() => {
+            console.log('Message sent to content script');
+          }).catch((error) => {
+            console.error('Error sending message to content script:', error);
           });
         }
-      }, 500);
+      }, 1000); // Increased delay to 1 second
     }
   }
+  
+  // Mark other tabs as unfocused
+  chrome.tabs.query({}, (tabs) => {
+    tabs.forEach(tab => {
+      if (tab.id !== tabId && tab.active) {
+        tabFocusState.set(tab.id, {
+          hasFocus: false,
+          lastFocusTime: Date.now()
+        });
+      }
+    });
+  });
   
   // Update focus state
   tabFocusState.set(tabId, {
@@ -139,8 +163,51 @@ chrome.tabs.onRemoved.addListener((tabId) => {
 
 let tabIntervals = new Map();
 
+// Handle badge updates from content script
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  if (message.action === 'updateBadge') {
+    const colors = {
+      high: '#ff0000',
+      medium: '#ff8800',
+      low: '#ffaa00'
+    };
+    const tabId = sender.tab ? sender.tab.id : null;
+    if (tabId) {
+      chrome.action.setBadgeText({ 
+        text: message.count.toString(),
+        tabId: tabId
+      });
+      chrome.action.setBadgeBackgroundColor({ 
+        color: colors[message.severity] || '#ff0000',
+        tabId: tabId
+      });
+      console.log('Badge updated:', message.count, 'changes, severity:', message.severity);
+    }
+    sendResponse({ success: true });
+  }
+});
+
 // Initialize on extension startup
 chrome.runtime.onInstalled.addListener(() => {
   console.log('Tabnabbing Detector installed');
 });
+
+// Initialize active tabs on startup
+chrome.tabs.query({ active: true }, (tabs) => {
+  tabs.forEach(tab => {
+    if (tab.id) {
+      tabFocusState.set(tab.id, {
+        hasFocus: true,
+        lastFocusTime: Date.now()
+      });
+      monitorTab(tab.id);
+      const intervalId = setInterval(() => {
+        monitorTab(tab.id);
+      }, SCREENSHOT_INTERVAL);
+      if (!tabIntervals) tabIntervals = new Map();
+      tabIntervals.set(tab.id, intervalId);
+    }
+  });
+});
+
 
