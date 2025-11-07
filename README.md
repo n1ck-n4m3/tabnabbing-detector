@@ -1,82 +1,139 @@
-# Tabnabbing Detector Chrome Extension
+# Tabnabbing Detector
 
-A Chrome extension (Manifest V3) that detects tabnabbing attacks by comparing screenshots before and after tab focus loss.
+A Chrome extension that detects and highlights tabnabbing attacks by comparing page screenshots using a grid-based approach.
+
+## Overview
+
+Tabnabbing is a phishing attack where malicious websites change their appearance when the tab loses focus, often mimicking login pages of legitimate sites (like PayPal or Gmail) to steal credentials. This extension detects such attacks by:
+
+1. Taking periodic screenshots of active tabs
+2. Detecting when tabs lose focus
+3. Comparing screenshots when the user returns to a tab
+4. Highlighting suspicious changes on the page
 
 ## Features
 
-- **Automatic Screenshot Monitoring**: Takes screenshots of active tabs at regular intervals (2 seconds)
-- **Focus Loss Detection**: Detects when a tab loses focus
-- **Change Detection**: Compares screenshots when user returns to a tab
-- **Visual Highlighting**: Highlights changed areas on the page using a grid-based approach
-- **Badge Alerts**: Shows color-coded badge in the extension icon based on severity
+- **Automatic Screenshot Monitoring**: Captures screenshots every 3 seconds
+- **Grid-Based Comparison**: Divides pages into 40×40px squares for efficient comparison
+- **Visual Highlighting**: Color-coded overlays show changed areas:
+  - 🔴 Red: Major changes (>50% difference)
+  - 🟠 Orange: Moderate changes (20-50% difference)
+  - 🟡 Yellow: Minor changes (5-20% difference)
+- **Badge Alerts**: Extension icon shows the number of detected changes
+- **Minimal Permissions**: Only requires `tabs` and `<all_urls>` permissions
 
 ## Installation
 
-1. Clone or download this repository
-2. Open Chrome and navigate to `chrome://extensions/`
-3. Enable "Developer mode" (toggle in top right)
-4. Click "Load unpacked"
-5. Select the `tabnabbing-detector` directory
+1. Open Chrome and navigate to `chrome://extensions/`
+2. Enable "Developer mode" (toggle in top-right corner)
+3. Click "Load unpacked"
+4. Select the `tabnabbing-detector` directory
 
-## How It Works
+## Testing
 
-1. **Screenshot Capture**: While browsing, the extension takes screenshots every 2 seconds of the active tab
-2. **Focus Detection**: When a tab loses focus (user switches tabs), the last screenshot is saved
-3. **Comparison**: When the user returns to the tab, a new screenshot is taken and compared with the previous one
-4. **Change Highlighting**: The page is divided into a grid (50x50px squares), and each square is compared. Changed squares are highlighted in red
-5. **Alert System**: The extension badge shows the number of changed squares with color coding:
-   - Red: High severity (>20 changes)
-   - Orange: Medium severity (10-20 changes)
-   - Yellow: Low severity (<10 changes)
+1. Open the test page: `test-paypal.html`
+2. Wait 3-5 seconds for initial screenshots
+3. Switch to another tab or window
+4. Wait 2-3 seconds (page will transform to phishing version)
+5. Switch back to the PayPal tab
+6. **Result**: Changed areas should be highlighted with colored overlays
 
 ## Technical Details
 
-- **Manifest Version**: 3
-- **Comparison Library**: Resemble.js (for image comparison)
-- **Grid Size**: 50x50 pixels per square
-- **Change Threshold**: 5% difference per square
-- **Permissions**: 
-  - `tabs`: To access tab information and monitor tab changes
-  - `activeTab`: To capture screenshots of the active tab
-  - `storage`: To temporarily store screenshots for comparison
-  - `host_permissions` (`<all_urls>`): Required for automatic screenshot capture without user interaction (necessary for tabnabbing detection)
+### Architecture
+
+- **manifest.json**: Manifest V3 configuration with minimal permissions
+- **background.js**: Service worker that handles screenshot capture and focus detection
+- **content.js**: Content script that performs grid-based comparison and highlights changes
+- **lib/resemble.js**: Image comparison library for pixel-level analysis
+
+### Comparison Algorithm
+
+1. **Screenshot Capture**: Uses `chrome.tabs.captureVisibleTab()` API
+2. **Grid Division**: Divides images into 40×40px squares
+3. **Per-Square Comparison**: Uses Resemble.js to compare each square
+4. **Threshold Detection**: Marks squares with >5% difference as changed
+5. **Coordinate Scaling**: Scales highlight coordinates from screenshot to viewport
+6. **Visual Overlay**: Creates fixed-position divs to highlight changes
+
+### Permissions
+
+- **`tabs`**: Required to capture screenshots and monitor tab state
+- **`<all_urls>`**: Required for content script injection on all pages
+
+No storage, scripting, or other unnecessary permissions are requested.
+
+## How to Use
+
+1. **Install the extension** (see Installation section)
+2. **Browse normally** - the extension works automatically
+3. **If an attack is detected**:
+   - Changed areas will be highlighted on the page
+   - Extension badge will show the number of changes
+   - Click the extension icon to see details
+   - Click "Clear Highlights" to remove overlays
 
 ## Project Structure
 
 ```
 tabnabbing-detector/
-├── manifest.json          # Extension manifest
-├── src/
-│   ├── background.js     # Service worker for screenshot capture
-│   ├── content.js        # Content script for change highlighting
-│   ├── popup.html        # Extension popup UI
-│   └── popup.js          # Popup script
+├── manifest.json          # Extension configuration
+├── background.js          # Screenshot capture and focus detection
+├── content.js             # Grid comparison and highlighting
+├── popup.html             # Extension popup UI
+├── popup.js               # Popup logic
 ├── lib/
-│   └── resemble.js       # Resemble.js library for image comparison
-└── icons/                # Extension icons
+│   └── resemble.js        # Image comparison library
+├── icons/
+│   ├── icon16.png
+│   ├── icon48.png
+│   └── icon128.png
+├── test-paypal.html       # Test page simulating tabnabbing attack
+└── README.md              # This file
 ```
 
-## Usage
+## Design Decisions
 
-1. Install the extension
-2. Browse normally - the extension works automatically
-3. If a tabnabbing attack is detected (page changes after losing focus), changed areas will be highlighted in red
-4. Click the extension icon to see status and clear highlights
+### Grid-Based Approach
+
+- **Why**: Efficient comparison of large screenshots
+- **Grid Size**: 40×40px balances accuracy and performance
+- **Threshold**: 5% difference minimizes false positives
+
+### Screenshot Interval
+
+- **Frequency**: 3 seconds between screenshots
+- **Why**: Balance between detection speed and performance impact
+
+### Local Comparison
+
+- **Library**: Resemble.js for pixel-level comparison
+- **Privacy**: All comparisons done locally in JavaScript
+- **No External Services**: No data sent to external servers
 
 ## Limitations
 
-- Screenshots are taken every 2 seconds, so very rapid changes might be missed
-- The grid-based approach provides approximate change detection
+- Screenshots are taken every 3 seconds, so very rapid changes might be missed
+- Grid-based approach provides approximate change detection
+- Cannot capture screenshots of protected pages (chrome://, etc.)
 - Performance may be affected on pages with heavy content
 
-## Development
+## References
 
-This extension uses:
-- Chrome Extension Manifest V3
-- Resemble.js for image comparison
-- Minimal permissions for security
+- Based on requirements from Web Security course project
+- Uses Resemble.js for image comparison: https://github.com/rsmbl/Resemble.js
+- Implements grid-based comparison as suggested in the project description
 
 ## License
 
-Educational project for Web Security course.
+See LICENSE file for details.
+
+## Notes
+
+This is an educational project for demonstrating tabnabbing detection. The implementation focuses on:
+
+1. **Minimal permissions** - only essential permissions requested
+2. **Local processing** - all comparisons done via JavaScript locally
+3. **Visual feedback** - clear highlighting of suspicious changes
+4. **Grid-based detection** - efficient comparison approach
 
